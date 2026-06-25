@@ -35,6 +35,26 @@ function post(type, payload) {
   self.postMessage({ type, ...payload });
 }
 
+// Extract a readable string from any thrown value, including non-standard
+// error shapes (e.g. Emscripten's FS.ErrnoError, or Pyodide's PythonError)
+// that don't always stringify cleanly via String(err) or err.message.
+function describeError(err) {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (err.message && typeof err.message === "string" && err.message.length > 0) {
+    return err.message;
+  }
+  if (typeof err.toString === "function") {
+    const s = err.toString();
+    if (s && s !== "[object Object]") return s;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch (e) {
+    return "An error occurred that could not be described (" + Object.prototype.toString.call(err) + ")";
+  }
+}
+
 async function initPyodide() {
   if (pyodideReadyPromise) return pyodideReadyPromise;
 
@@ -91,7 +111,11 @@ async function fetchRepoAndPopulate(owner, repo, branch) {
         // directory already exists from a previous "Load repo" click - fine
       }
     }
-    pyodide.FS.writeFile(relPath, files[relPath]);
+    try {
+      pyodide.FS.writeFile(relPath, files[relPath]);
+    } catch (e) {
+      throw new Error(`Failed writing ${relPath} into the Python filesystem: ${describeError(e)}`);
+    }
   }
 
   post("repoLoaded", { files });
@@ -125,7 +149,7 @@ for mod_name in list(sys.modules):
     await pyodide.runPythonAsync(code);
     post("runComplete", { kind: "main", output, success: true });
   } catch (err) {
-    post("runComplete", { kind: "main", output: output + "\n" + String(err), success: false });
+    post("runComplete", { kind: "main", output: output + "\n" + describeError(err), success: false });
   } finally {
     pyodide.setStdout({});
     pyodide.setStderr({});
@@ -153,7 +177,7 @@ exit_code = int(pytest.main(["tests", "-v", "--no-header", "-p", "no:cacheprovid
     const exitCode = pyodide.globals.get("exit_code");
     post("runComplete", { kind: "tests", output, success: exitCode === 0 });
   } catch (err) {
-    post("runComplete", { kind: "tests", output: output + "\n" + String(err), success: false });
+    post("runComplete", { kind: "tests", output: output + "\n" + describeError(err), success: false });
   } finally {
     pyodide.setStdout({});
     pyodide.setStderr({});
@@ -174,6 +198,6 @@ self.onmessage = async (event) => {
       await runTests();
     }
   } catch (err) {
-    post("error", { message: String(err && err.message ? err.message : err) });
+    post("error", { message: describeError(err) });
   }
 };

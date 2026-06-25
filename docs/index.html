@@ -414,6 +414,9 @@
       runTestsBtn.disabled = !(pyodideReady && Object.keys(loadedFiles).length > 0);
       runMainBtn.textContent = "▶ Run main.py";
       runTestsBtn.textContent = "▶ Run pytest";
+      if (Object.keys(loadedFiles).length === 0) {
+        fileTree.innerHTML = '<div class="empty-state">Could not load files. See the error below, then try <strong>Load repo</strong> again.</div>';
+      }
       appendErrorBlock(data.message);
     }
   };
