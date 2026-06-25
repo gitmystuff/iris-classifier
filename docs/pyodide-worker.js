@@ -99,22 +99,39 @@ async function fetchRepoAndPopulate(owner, repo, branch) {
     completed += 1;
   }
 
-  // Write the fresh set of files into the virtual filesystem, creating
-  // any needed subdirectories first via mkdirTree (safe to call even if
-  // the directory already exists from a previous load).
+  // Use a dedicated, absolute project root rather than relative paths.
+  // Relative paths depend on the FS's current working directory, which
+  // is not guaranteed to be consistent across Pyodide versions/workers.
+  const root = "/project";
+  if (!pyodide.FS.analyzePath(root).exists) {
+    pyodide.FS.mkdir(root);
+  }
+
+  // Create every needed subdirectory first (sorted so parents are made
+  // before children), then write all files.
+  const dirsNeeded = new Set();
   for (const relPath of PROJECT_FILES) {
-    const dir = relPath.includes("/") ? relPath.split("/").slice(0, -1).join("/") : null;
-    if (dir) {
-      try {
-        pyodide.FS.mkdirTree(dir);
-      } catch (e) {
-        // directory already exists from a previous "Load repo" click - fine
+    if (relPath.includes("/")) {
+      const parts = relPath.split("/").slice(0, -1);
+      let acc = root;
+      for (const part of parts) {
+        acc += "/" + part;
+        dirsNeeded.add(acc);
       }
     }
+  }
+  for (const dirPath of Array.from(dirsNeeded).sort()) {
+    if (!pyodide.FS.analyzePath(dirPath).exists) {
+      pyodide.FS.mkdir(dirPath);
+    }
+  }
+
+  for (const relPath of PROJECT_FILES) {
+    const fullPath = `${root}/${relPath}`;
     try {
-      pyodide.FS.writeFile(relPath, files[relPath]);
+      pyodide.FS.writeFile(fullPath, files[relPath]);
     } catch (e) {
-      throw new Error(`Failed writing ${relPath} into the Python filesystem: ${describeError(e)}`);
+      throw new Error(`Failed writing ${fullPath} into the Python filesystem: ${describeError(e)}`);
     }
   }
 
@@ -134,13 +151,13 @@ async function runMain() {
     // otherwise silently run instead of the freshly-fetched files.
     await pyodide.runPythonAsync(`
 import sys
-if "." not in sys.path:
-    sys.path.insert(0, ".")
+if "/project" not in sys.path:
+    sys.path.insert(0, "/project")
 for mod_name in list(sys.modules):
     if mod_name == "iris_classifier" or mod_name.startswith("iris_classifier."):
         del sys.modules[mod_name]
 `);
-    const code = pyodide.FS.readFile("main.py", { encoding: "utf8" });
+    const code = pyodide.FS.readFile("/project/main.py", { encoding: "utf8" });
     // main.py is written with `if __name__ == "__main__": run()`. When run
     // via runPythonAsync, the module-level __name__ is not "__main__", so
     // that guard never fires. Set __name__ explicitly before exec'ing so
@@ -166,13 +183,13 @@ async function runTests() {
   try {
     await pyodide.runPythonAsync(`
 import sys
-if "." not in sys.path:
-    sys.path.insert(0, ".")
+if "/project" not in sys.path:
+    sys.path.insert(0, "/project")
 for mod_name in list(sys.modules):
     if mod_name == "iris_classifier" or mod_name.startswith("iris_classifier."):
         del sys.modules[mod_name]
 import pytest
-exit_code = int(pytest.main(["tests", "-v", "--no-header", "-p", "no:cacheprovider"]))
+exit_code = int(pytest.main(["/project/tests", "-v", "--no-header", "-p", "no:cacheprovider"]))
 `);
     const exitCode = pyodide.globals.get("exit_code");
     post("runComplete", { kind: "tests", output, success: exitCode === 0 });
