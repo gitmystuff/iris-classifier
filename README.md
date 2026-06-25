@@ -64,16 +64,3 @@ without installing anything locally:
    Use the **Source Control** panel (the icon in the left sidebar that looks
    like a branch) to stage, commit, and push your changes — all without a
    terminal or local git install.
-
-6. **Submit your fork's URL** for evaluation.
-
-## Your assignment
-
-Starting from this **working** codebase, extend or refactor it. For example:
-
-- Add a new module or function (e.g. try a different classifier in `model.py`)
-- Add new test cases that cover an edge case the current tests miss
-- Improve `predict.py` to validate its inputs (e.g. reject negative measurements)
-
-Make sure `pytest tests/ -v` still passes (and ideally has *more* passing tests
-than it started with) before you submit.
