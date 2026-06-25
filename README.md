@@ -20,7 +20,7 @@ iris-classifier/
 ├── main.py                   # Phase 2: orchestrates the modules below
 ├── iris_classifier/
 │   ├── data.py               # loading + splitting the dataset
-│   ├── model.py               # building + training the classifier
+│   ├── model.py              # building + training the classifier
 │   ├── evaluate.py           # scoring predictions
 │   └── predict.py            # predicting on one new sample
 ├── tests/
