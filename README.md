@@ -58,9 +58,13 @@ without installing anything locally:
 
 4. **Edit the code**
    Make your changes directly in the browser editor. Full syntax highlighting
-   and IntelliSense work, just like desktop VS Code.
 
-5. **Commit and push**
+6. **Commit and push**
    Use the **Source Control** panel (the icon in the left sidebar that looks
    like a branch) to stage, commit, and push your changes — all without a
    terminal or local git install.
+
+## Note
+
+* Vibe Coding -> Context Engineering -> Spec Driven Development -> Event Driven Code Agent
+* Have the AI write the test first, the spec, the context, and then the code
